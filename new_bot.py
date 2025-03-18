@@ -11,7 +11,6 @@ from datetime import datetime
 TOKEN = "7642749376:AAGcsopXgQx0hWMcFVMLG8Cv0VEWYsUS9kc"
 ADMIN_USER_ID = 704617782
 
-# Настройка Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_name("botinfavikusya-52fbe758c9b8.json", scope)
 client = gspread.authorize(creds)
@@ -20,14 +19,12 @@ tests_sheet = spreadsheet.worksheet("Тесты")
 rating_sheet = spreadsheet.worksheet("Рейтинг")
 news_sheet = spreadsheet.worksheet("Рассылки")
 
-# Создание бота и диспетчера
 session = AiohttpSession()
 bot = Bot(token=TOKEN, session=session)
 dp = Dispatcher()
 router = Router()
 dp.include_router(router)
 
-# Храним активные тесты пользователей
 active_tests = {}
 
 async def update_user_score(user_id, username, score, test_number):
@@ -81,7 +78,7 @@ async def send_random_test(user_id, username):
         "answered": 0,
         "username": username,
         "waiting_for_answer": False,
-        "test_number": test_number  # Сохраняем номер теста
+        "test_number": test_number  
     }
     await send_question(user_id)
 
