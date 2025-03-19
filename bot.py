@@ -105,12 +105,12 @@ async def send_question(user_id):
 
     poll = await bot.send_poll(
         user_id, question_text, answers, type="quiz",
-        correct_option_id=correct_index, open_period=5*60, is_anonymous=False
+        correct_option_id=correct_index, open_period=60, is_anonymous=False
     )
 
     test_data["poll_id"] = poll.poll.id
 
-    asyncio.create_task(wait_for_answer(user_id, 5*60))
+    asyncio.create_task(wait_for_answer(user_id, 60))
 
 async def wait_for_answer(user_id, delay):
     """Ждет ответ пользователя или автоматически переходит к следующему вопросу."""
@@ -126,8 +126,6 @@ async def wait_for_answer(user_id, delay):
 async def handle_poll_answer(poll_answer: PollAnswer):
     user_id = poll_answer.user.id
     test_data = active_tests.get(user_id)
-
-    print(user_id, test_data)
 
     if not test_data or not test_data["waiting_for_answer"]:
         return 
@@ -171,7 +169,7 @@ async def finish_test(user_id):
                    "➡️ [Задать любой вопрос по поводу подготовки](http://t.me/predbanmanager_bot?start=telegramlanskayaopis3202501)\n"
                    "➡️ [Записаться на курс ФЛЕШ Финал и сделать результат 8/8](http://t.me/predbanmanager_bot?start=telegramlanskayaopis3202501)")
     
-    image_url = "https://i.imgur.com/tjP9i5X.jpeg"  
+    image_url = "https://i.imgur.com/tjP9i5X.jpeg"  # Укажите URL изображения
     await bot.send_photo(user_id, image_url, caption=result_text, parse_mode="Markdown")
 
 @router.message(Command("start"))
@@ -183,29 +181,36 @@ async def start_command(message: types.Message):
 async def test_command(message: types.Message):
     await send_random_test(message.from_user.id, message.from_user.username)
 
+# Функция для обновления флага в таблице
 async def update_flag_in_sheet():
     rows = news_sheet.get_all_values()
-    for row_index, row in enumerate(rows[1:], start=2): 
+    for row_index, row in enumerate(rows[1:], start=2):  # Начинаем с 2, так как первая строка — это заголовок
         text, date_str, send_flag = row[0], row[1], row[2]
-
+        
+        # Проверяем, если флаг False и дата соответствует сегодняшнему дню
         if send_flag.lower() == 'false' and datetime.strptime(date_str, "%d.%m.%Y").date() == datetime.today().date():
+            # Обновляем флаг на TRUE
             news_sheet.update_cell(row_index, 3, 'TRUE')
-            return row  
+            return row  # Возвращаем данные строки, чтобы отправить сообщение
 
-    return None  
+    return None  # Если ничего не нашли для рассылки
 
+# Функция для рассылки
 async def send_newsletter():
+    # Ищем строки, которые нужно отправить
     row = await update_flag_in_sheet()
     
     if row is not None:
         text, date, send_flag = row[0], row[1], row[2]
         
-        users = rating_sheet.col_values(1) 
+        # Получаем список всех пользователей
+        users = rating_sheet.col_values(1)  # Игнорируем первую строку (заголовок)
 
+        # Рассылаем сообщение всем пользователям
         for user in users:
             try:
                 await bot.send_message(user, text)
-                await asyncio.sleep(0.5) 
+                await asyncio.sleep(0.5)  # Пауза между сообщениями, чтобы не заблокировали бота
             except Exception as e:
                 print(f"Ошибка отправки пользователю {user}: {e}")
                 
@@ -213,15 +218,18 @@ async def send_newsletter():
     else:
         return "Нет сообщений для отправки на сегодня."
 
+# Команда для админа
 @router.message(Command("send_newsletter"))
 async def send_newsletter_command(message: types.Message):
-
+    # Проверка на админа
     if message.from_user.id != ADMIN_USER_ID:
         await bot.send_message(message.from_user.id, "У вас нет прав для отправки рассылки.")
         return
-
+    
+    # Запуск рассылки
     result = await send_newsletter()
-
+    
+    # Ответ пользователю
     await bot.send_message(message.from_user.id, result)
 
 async def main():
