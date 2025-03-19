@@ -46,7 +46,7 @@ async def update_user_score(user_id, username, score, test_number):
         
 
         rating_sheet.update_cell(row_index, 3, current_score + score)
-        rating_sheet.update_cell(row_index, 4, ", ".join(completed_tests))
+        rating_sheet.update_cell(row_index, 4, "; ".join(completed_tests))
     else:
         rating_sheet.append_row([str(user_id), username, score, test_number])
 
@@ -61,7 +61,7 @@ async def send_random_test(user_id, username):
         row_index = user_ids.index(str(user_id)) + 1
         completed_tests = rating_sheet.cell(row_index, 4).value
         if completed_tests:
-            completed_tests = completed_tests.split(", ")
+            completed_tests = completed_tests.split("; ")
         else:
             completed_tests = []
 
@@ -110,7 +110,9 @@ async def send_question(user_id):
 
     test_data["poll_id"] = poll.poll.id
 
-    asyncio.create_task(wait_for_answer(user_id, 5*60))
+    # **Сохраняем задачу ожидания**
+    test_data["waiting_task"] = asyncio.create_task(wait_for_answer(user_id, 5*60))
+
 
 async def wait_for_answer(user_id, delay):
     """Ждет ответ пользователя или автоматически переходит к следующему вопросу."""
@@ -127,18 +129,20 @@ async def handle_poll_answer(poll_answer: PollAnswer):
     user_id = poll_answer.user.id
     test_data = active_tests.get(user_id)
 
-    print(user_id, test_data)
-
     if not test_data or not test_data["waiting_for_answer"]:
-        return 
+        return  # Игнорируем, если теста нет или уже ответили
 
-    test_data["waiting_for_answer"] = False  
+    # **Отменяем таймер, если он еще не завершен**
+    if "waiting_task" in test_data and not test_data["waiting_task"].done():
+        test_data["waiting_task"].cancel()
+
+    test_data["waiting_for_answer"] = False  # Отключаем ожидание, чтобы таймер не вызвал вопрос
     test_data["answered"] += 1
 
     if poll_answer.option_ids[0] == test_data["correct_index"]:
         test_data["correct_answers"] += 1
 
-    await send_question(user_id)  
+    await send_question(user_id)  # Отправляем следующий вопрос
 
 async def finish_test(user_id):
     test_data = active_tests.pop(user_id, None)
