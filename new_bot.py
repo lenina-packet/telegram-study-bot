@@ -129,6 +129,8 @@ async def handle_poll_answer(poll_answer: PollAnswer):
     user_id = poll_answer.user.id
     test_data = active_tests.get(user_id)
 
+    print(user_id, test_data)
+
     if not test_data or not test_data["waiting_for_answer"]:
         return  # Игнорируем, если теста нет или уже ответили
 
